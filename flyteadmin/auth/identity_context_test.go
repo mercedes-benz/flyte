@@ -1,6 +1,8 @@
 package auth
 
 import (
+	"github.com/flyteorg/flyte/flyteidl/gen/pb-go/flyteidl/service"
+	"github.com/flyteorg/flyte/flyteplugins/go/tasks/pluginmachinery/utils"
 	"testing"
 	"time"
 
@@ -18,10 +20,17 @@ func TestGetClaims(t *testing.T) {
 		"groups":    []string{"g1", "g2"},
 		"something": "else",
 	}
-	withClaimsCtx, err := NewIdentityContext("", "", "", time.Now(), nil, nil, claims)
+
+	userInfo := &service.UserInfoResponse{}
+	userInfoClaims := map[string]interface{}{
+		"roles": []string{"r1", "r2"},
+	}
+	userInfo.AdditionalClaims, err = utils.MarshalObjToStruct(&userInfoClaims)
+	assert.NoError(t, err)
+
+	withClaimsCtx, err := NewIdentityContext("", "", "", time.Now(), nil, userInfo, claims)
 	assert.NoError(t, err)
 	assert.EqualValues(t, claims, withClaimsCtx.Claims())
-
 	assert.NotEmpty(t, withClaimsCtx.UserInfo().AdditionalClaims)
 }
 

@@ -36,6 +36,8 @@ func newMockProvider(t testing.TB) (Provider, auth.SecretsSet) {
 	sm.OnGet(ctx, config.SecretNameTokenSigningRSAKey).Return(buf.String(), nil)
 	sm.OnGet(ctx, config.SecretNameOldTokenSigningRSAKey).Return(buf.String(), nil)
 
+	config.DefaultConfig.AppAuth.SelfAuthServer.StaticClients["flytepropeller"].Secret = []byte("$2b$06$6uxsMcR4tKaUdrz.WUjtMuAlkjVUNq3GJwNYRu/je7BhOdl1PGdNK") //foobar
+
 	p, err := NewProvider(ctx, config.DefaultConfig.AppAuth.SelfAuthServer, sm)
 	assert.NoError(t, err)
 	return p, secrets

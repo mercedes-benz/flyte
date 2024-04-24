@@ -126,6 +126,13 @@ var (
 				},
 			},
 		},
+		ProjectAuthorization: ProjectAuthorizationConfig{
+			Enabled:  false,
+			UserAuth: ProjectAuthorizationUserAuth{},
+			AppAuth: ProjectAuthorizationAppAuth{
+				Mappings: []ProjectAuthorizationClientIDProjectSetMapping{},
+			},
+		},
 	}
 
 	cfgSection = config.MustRegisterSection("auth", DefaultConfig)
@@ -164,6 +171,9 @@ type Config struct {
 
 	// AppAuth settings used to authenticate and control/limit access scopes for apps.
 	AppAuth OAuth2Options `json:"appAuth" pflag:",Defines Auth options for apps. UserAuth must be enabled for AppAuth to work."`
+
+	// ProjectAuthorization settings to map which projects a user can access
+	ProjectAuthorization ProjectAuthorizationConfig `json:"projectAuthorization" pflag:",Defines Project Authorization settings."`
 }
 
 type AuthorizationServer struct {
@@ -271,6 +281,38 @@ type OpenIDOptions struct {
 	// be supported by any OIdC server. Refer to https://openid.net/specs/openid-connect-core-1_0.html#ScopeClaims for
 	// a complete list. Other providers might support additional scopes that you can define in a config.
 	Scopes []string `json:"scopes"`
+}
+
+type ProjectAuthorizationConfig struct {
+	// Enables Project Authorization
+	Enabled bool `json:"enabled" pflag:",Enables project authorization."`
+
+	// Named sets of projects to be used for userAuth and appAuth
+	ProjectSets map[string][]string `json:"projectSets" pflag:", Named sets of projects to be used for userAuth and appAuth."`
+
+	// Settings for mapping project assignments to regular users
+	UserAuth ProjectAuthorizationUserAuth `json:"userAuth" pflag:", Settings for mapping project assignments to regular users."`
+
+	// Settings for mapping project assignments to apps
+	AppAuth ProjectAuthorizationAppAuth `json:"appAuth" pflag:", Settings for mapping project assignments to apps."`
+}
+
+type ProjectAuthorizationUserAuth struct {
+	// The claim to use to determine the projects a user can access. All available claims from all sources will be checked
+	Claim string `json:"claim" pflag:",The claim to use to determine the projects a user can access."`
+}
+
+type ProjectAuthorizationAppAuth struct {
+	// Mappings of the client id to the project sets. Only non public clients are supported.
+	Mappings []ProjectAuthorizationClientIDProjectSetMapping `json:"mappings" pflag:",Mappings of a client ID to the project sets. Only non public clients are supported."`
+}
+
+type ProjectAuthorizationClientIDProjectSetMapping struct {
+	// Client ID to map
+	ClientID string `json:"clientID" pflag:",Client ID."`
+
+	// Projects Sets to assign to a client
+	ProjectSets []string `json:"projectSets" pflag:",Projects Sets to assign to a client."`
 }
 
 func GetConfig() *Config {

@@ -35,10 +35,11 @@ func getDbConfig() *database.DbConfig {
 func getIntegrationDbConfig() *database.DbConfig {
 	return &database.DbConfig{
 		Postgres: database.PostgresConfig{
-			Host:   "postgres",
-			Port:   5432,
-			DbName: "postgres",
-			User:   "postgres",
+			Host:     "localhost",
+			Port:     30001,
+			DbName:   "flyte",
+			User:     "postgres",
+			Password: "postgres",
 		},
 	}
 }

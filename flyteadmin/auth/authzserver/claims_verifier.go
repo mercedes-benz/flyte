@@ -3,6 +3,7 @@ package authzserver
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/flyteorg/flyte/flytestdlib/utils"
 
 	"github.com/ory/x/jwtx"
 	"k8s.io/apimachinery/pkg/util/sets"
@@ -38,6 +39,14 @@ func verifyClaims(expectedAudience sets.String, claimsRaw map[string]interface{}
 		if err = json.Unmarshal(raw, userInfo); err != nil {
 			return nil, fmt.Errorf("failed to unmarshal user info claim into UserInfo type. Error: %w", err)
 		}
+
+		additionalClaimsPbStruct, err := utils.MarshalObjToStruct(userInfoRaw[UserIDAdditionalClaims])
+
+		if err != nil {
+			return nil, fmt.Errorf("error marshalling user info additional claims")
+		}
+
+		userInfo.AdditionalClaims = additionalClaimsPbStruct
 	}
 
 	clientID := ""

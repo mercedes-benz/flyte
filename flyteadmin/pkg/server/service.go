@@ -9,6 +9,8 @@ import (
 	"strings"
 	"time"
 
+	"google.golang.org/protobuf/encoding/protojson"
+
 	"github.com/gorilla/handlers"
 	grpcmiddleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	grpcauth "github.com/grpc-ecosystem/go-grpc-middleware/auth"
@@ -102,13 +104,18 @@ func newGRPCServer(ctx context.Context, pluginRegistry *plugins.Registry, cfg *c
 	if cfg.Security.UseAuth {
 		logger.Infof(ctx, "Creating gRPC server with authentication")
 		middlewareInterceptors := plugins.Get[grpc.UnaryServerInterceptor](pluginRegistry, plugins.PluginIDUnaryServiceMiddleware)
-		chainedUnaryInterceptors = grpcmiddleware.ChainUnaryServer(grpcprometheus.UnaryServerInterceptor,
+		interceptors := []grpc.UnaryServerInterceptor{
+			grpcprometheus.UnaryServerInterceptor,
 			otelUnaryServerInterceptor,
 			auth.GetAuthenticationCustomMetadataInterceptor(authCtx),
 			grpcauth.UnaryServerInterceptor(auth.GetAuthenticationInterceptor(authCtx)),
 			auth.AuthenticationLoggingInterceptor,
-			middlewareInterceptors,
-		)
+		}
+		if authCfg := authConfig.GetConfig(); authCfg.ProjectAuthorization.Enabled {
+			interceptors = append(interceptors, auth.AuthorizationInterceptor)
+		}
+		interceptors = append(interceptors, middlewareInterceptors)
+		chainedUnaryInterceptors = grpcmiddleware.ChainUnaryServer(interceptors...)
 	} else {
 		logger.Infof(ctx, "Creating gRPC server without authentication")
 		chainedUnaryInterceptors = grpcmiddleware.ChainUnaryServer(grpcprometheus.UnaryServerInterceptor, otelUnaryServerInterceptor)

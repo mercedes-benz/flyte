@@ -24,6 +24,7 @@ import (
 	"github.com/flyteorg/flyte/flyteidl/gen/pb-go/flyteidl/service"
 	"github.com/flyteorg/flyte/flytestdlib/errors"
 	"github.com/flyteorg/flyte/flytestdlib/logger"
+	"github.com/flyteorg/flyte/flytestdlib/utils"
 )
 
 const (
@@ -477,6 +478,22 @@ func QueryUserInfoUsingAccessToken(ctx context.Context, originalRequest *http.Re
 		logger.Errorf(ctx, "Error getting user info from IDP %s", err)
 		return &service.UserInfoResponse{}, fmt.Errorf("error getting user info from IDP")
 	}
+
+	additionalClaims := make(map[string]interface{})
+	err = userInfo.Claims(&additionalClaims)
+
+	if err != nil {
+		logger.Errorf(ctx, "Error reading additional claims from user info %v", err)
+		return &service.UserInfoResponse{}, fmt.Errorf("error getting additional claims from user info")
+	}
+
+	additionalClaimsPbStruct, err := utils.MarshalObjToStruct(additionalClaims)
+	if err != nil {
+		logger.Errorf(ctx, "Error marshalling additional claims %s", err)
+		return &service.UserInfoResponse{}, fmt.Errorf("error marshalling additional claims")
+	}
+
+	resp.AdditionalClaims = additionalClaimsPbStruct
 
 	return resp, err
 }

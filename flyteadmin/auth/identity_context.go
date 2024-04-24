@@ -2,13 +2,11 @@ package auth
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"k8s.io/apimachinery/pkg/util/sets"
 
 	"github.com/flyteorg/flyte/flyteidl/gen/pb-go/flyteidl/service"
-	"github.com/flyteorg/flyte/flyteplugins/go/tasks/pluginmachinery/utils"
 )
 
 var (
@@ -105,14 +103,6 @@ func NewIdentityContext(audience, userID, appID string, authenticatedAt time.Tim
 
 	if len(userInfo.Subject) == 0 {
 		userInfo.Subject = userID
-	}
-
-	if len(claims) > 0 {
-		claimsStruct, err := utils.MarshalObjToStruct(claims)
-		if err != nil {
-			return IdentityContext{}, fmt.Errorf("failed to marshal claims [%+v] to struct: %w", claims, err)
-		}
-		userInfo.AdditionalClaims = claimsStruct
 	}
 
 	return IdentityContext{

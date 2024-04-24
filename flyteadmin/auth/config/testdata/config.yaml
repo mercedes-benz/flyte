@@ -6,3 +6,19 @@ appAuth:
       - my-client:
           id: my-client
           client_secret: JDJhJDA2JHB4czFBa0c4MUt2cmhwbWwxUWlMU09RYVRrOWVlUHJVLzdZYWI5eTA3aDN4MFRnbGJhb1Q2
+projectAuthorization:
+  enabled: true
+  projectSets:
+    role_one:
+      - project1
+      - project2
+    role_two:
+      - project3
+  userAuth:
+    claim: entitlements
+  appAuth:
+    mappings:
+      - clientID: my-client
+        projectSets:
+          - role_one
+          - role_two

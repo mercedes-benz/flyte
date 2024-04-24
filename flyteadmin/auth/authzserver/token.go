@@ -27,8 +27,22 @@ func tokenEndpoint(authCtx interfaces.AuthenticationContext, rw http.ResponseWri
 
 	oauth2Provider := authCtx.OAuth2Provider()
 
+	// Get the clientID used in case of a client_credentials grant so the issued access token can be associated with the client
+	var clientID = ""
+
+	err := req.ParseForm()
+	if err != nil {
+		logger.Errorf(ctx, "Error initializing form %v", err)
+	}
+
+	if "client_credentials" == req.FormValue("grant_type") {
+		if username, _, ok := req.BasicAuth(); ok {
+			clientID = username
+		}
+	}
+
 	// Create an empty session object which will be passed to the request handlers
-	emptySession := oauth2Provider.NewJWTSessionToken("", "", "", "", nil)
+	emptySession := oauth2Provider.NewJWTSessionToken("", clientID, "", "", nil)
 
 	// This will create an access request object and iterate through the registered TokenEndpointHandlers to validate the request.
 	accessRequest, err := oauth2Provider.NewAccessRequest(ctx, req, emptySession)

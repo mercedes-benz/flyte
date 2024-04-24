@@ -17,7 +17,10 @@ func Test_verifyClaims(t *testing.T) {
 		identityCtx, err := verifyClaims(sets.NewString("https://myserver"), map[string]interface{}{
 			"aud": []string{"https://myserver"},
 			"user_info": map[string]interface{}{
-				"preferred_name": "John Doe",
+				"preferred_username": "John Doe",
+				"additional_claims": map[string]interface{}{
+					"roles": []string{"r1", "r2"},
+				},
 			},
 			"sub":       "123",
 			"client_id": "my-client",
@@ -31,6 +34,8 @@ func Test_verifyClaims(t *testing.T) {
 		assert.Equal(t, "123", identityCtx.UserID())
 		assert.Equal(t, "https://myserver", identityCtx.Audience())
 		assert.Equal(t, "byhsu@linkedin.com", identityCtx.UserInfo().Email)
+		assert.Equal(t, "John Doe", identityCtx.UserInfo().PreferredUsername)
+		assert.Equal(t, "r1", identityCtx.UserInfo().AdditionalClaims.Fields["roles"].GetListValue().Values[0].GetStringValue())
 	})
 
 	t.Run("Multiple audience", func(t *testing.T) {
@@ -96,5 +101,27 @@ func Test_verifyClaims(t *testing.T) {
 		assert.Error(t, err)
 		assert.Nil(t, identityCtx)
 		assert.Equal(t, "failed getting scope claims due to  unknown type int with value 1", err.Error())
+	})
+
+	t.Run("empty user info additional claims", func(t *testing.T) {
+		identityCtx, err := verifyClaims(sets.NewString("https://myserver"), map[string]interface{}{
+			"aud": []string{"https://myserver"},
+			"user_info": map[string]interface{}{
+				"preferred_username": "John Doe",
+			},
+			"sub":       "123",
+			"client_id": "my-client",
+			"scp":       []interface{}{"all", "offline"},
+			"email":     "byhsu@linkedin.com",
+		})
+
+		assert.NoError(t, err)
+		assert.Equal(t, sets.NewString("all", "offline"), identityCtx.Scopes())
+		assert.Equal(t, "my-client", identityCtx.AppID())
+		assert.Equal(t, "123", identityCtx.UserID())
+		assert.Equal(t, "https://myserver", identityCtx.Audience())
+		assert.Equal(t, "byhsu@linkedin.com", identityCtx.UserInfo().Email)
+		assert.Equal(t, "John Doe", identityCtx.UserInfo().PreferredUsername)
+		assert.Equal(t, 0, len(identityCtx.UserInfo().AdditionalClaims.Fields))
 	})
 }

@@ -47,9 +47,25 @@ func TestParseClientSecretConfig(t *testing.T) {
 	assert.Equal(t, "my-client", GetConfig().AppAuth.SelfAuthServer.StaticClients["my-client"].ID)
 }
 
+func TestParseProjectIsolationConfig(t *testing.T) {
+	accessor := viper.NewAccessor(config.Options{
+		RootSection: cfgSection,
+		SearchPaths: []string{filepath.Join("testdata", "config.yaml")},
+	})
+
+	assert.NoError(t, accessor.UpdateConfig(context.Background()))
+	assert.Equal(t, true, GetConfig().ProjectAuthorization.Enabled)
+	assert.Equal(t, []string{"project1", "project2"}, GetConfig().ProjectAuthorization.ProjectSets["role_one"])
+	assert.Equal(t, "entitlements", GetConfig().ProjectAuthorization.UserAuth.Claim)
+	assert.Equal(t, "my-client", GetConfig().ProjectAuthorization.AppAuth.Mappings[0].ClientID)
+	assert.Equal(t, []string{"role_one", "role_two"}, GetConfig().ProjectAuthorization.AppAuth.Mappings[0].ProjectSets)
+
+}
+
 func TestDefaultConfig(t *testing.T) {
 	assert.Equal(t, len(DefaultConfig.AppAuth.SelfAuthServer.StaticClients), 3)
 	assert.Equal(t, DefaultConfig.AppAuth.SelfAuthServer.StaticClients["flyte-cli"].ID, "flyte-cli")
+	assert.Equal(t, DefaultConfig.ProjectAuthorization.Enabled, false)
 }
 
 func TestCompare(t *testing.T) {

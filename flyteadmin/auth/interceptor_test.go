@@ -4,7 +4,11 @@ import (
 	"context"
 	"testing"
 
+	authConfig "github.com/flyteorg/flyte/flyteadmin/auth/config"
+	"github.com/flyteorg/flyte/flyteidl/gen/pb-go/flyteidl/admin"
+	"github.com/flyteorg/flyte/flyteidl/gen/pb-go/flyteidl/service"
 	"github.com/stretchr/testify/assert"
+	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"k8s.io/apimachinery/pkg/util/sets"
@@ -76,4 +80,69 @@ func TestGetUserIdentityFromContext(t *testing.T) {
 
 	_, err := ExecutionUserIdentifierInterceptor(ctx, nil, nil, handler)
 	assert.NoError(t, err)
+}
+
+func setAuthzConfig(authz authConfig.ProjectAuthorizationConfig) {
+	getAuthConfigFunc = func() *authConfig.Config {
+		return &authConfig.Config{ProjectAuthorization: authz}
+	}
+}
+
+func TestAuthorizationInterceptor(t *testing.T) {
+	claims := map[string]interface{}{"entitlement_group": []string{"r1", "r2"}}
+	idCtx := IdentityContext{
+		userID: "yeee",
+		claims: &claims,
+	}
+	ctx := idCtx.WithContext(context.Background())
+	request := admin.ExecutionCreateRequest{Project: "p1"}
+	info := grpc.UnaryServerInfo{FullMethod: service.AdminService_CreateExecution_FullMethodName}
+
+	t.Run("authorized for current project", func(t *testing.T) {
+		handlerCalled := false
+		handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+			handlerCalled = true
+			return nil, nil
+		}
+		authz := authConfig.ProjectAuthorizationConfig{
+			ProjectSets: map[string][]string{
+				"r1": {"p1"},
+			},
+		}
+		setAuthzConfig(authz)
+		_, err := AuthorizationInterceptor(ctx, &request, &info, handler)
+		assert.NoError(t, err)
+		assert.True(t, handlerCalled)
+	})
+
+	t.Run("not authorized for current project", func(t *testing.T) {
+		handlerCalled := false
+		handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+			handlerCalled = true
+			return nil, nil
+		}
+		request := admin.ExecutionCreateRequest{Project: "p1"}
+		info := grpc.UnaryServerInfo{FullMethod: service.AdminService_CreateExecution_FullMethodName}
+
+		authz := authConfig.ProjectAuthorizationConfig{ProjectSets: map[string][]string{
+			"r3": {"p3"},
+		}}
+		setAuthzConfig(authz)
+		_, err := AuthorizationInterceptor(ctx, &request, &info, handler)
+		assert.ErrorContains(t, err, "rpc error: code = Unauthenticated desc = User yeee not permitted to access project p1")
+		assert.False(t, handlerCalled)
+	})
+
+	t.Run("authorized by empty projectId", func(t *testing.T) {
+		request := admin.ExecutionCreateRequest{}
+		handlerCalled := false
+		handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+			handlerCalled = true
+			return nil, nil
+		}
+
+		_, err := AuthorizationInterceptor(ctx, &request, &info, handler)
+		assert.NoError(t, err)
+		assert.True(t, handlerCalled)
+	})
 }

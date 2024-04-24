@@ -2,10 +2,11 @@ package adminservice
 
 import (
 	"context"
-
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
+	"github.com/flyteorg/flyte/flyteadmin/auth"
+	authConfig "github.com/flyteorg/flyte/flyteadmin/auth/config"
 	"github.com/flyteorg/flyte/flyteadmin/pkg/rpc/adminservice/util"
 	"github.com/flyteorg/flyte/flyteidl/gen/pb-go/flyteidl/admin"
 )
@@ -37,6 +38,16 @@ func (m *AdminService) ListProjects(ctx context.Context, request *admin.ProjectL
 	var err error
 	m.Metrics.projectEndpointMetrics.list.Time(func() {
 		response, err = m.ProjectManager.ListProjects(ctx, *request)
+		if err == nil {
+			// Filtering projects here might break pagination.
+			// Hence, this has to be refactored sooner or later.
+			// As long as project count stays "low" we shouldn't notice
+			// any effect on WebUI though.
+			if authCfg := authConfig.GetConfig(); authCfg.ProjectAuthorization.Enabled {
+				identityContext := auth.IdentityContextFromContext(ctx)
+				err = auth.FilterProjectsByEntitlement(identityContext, response)
+			}
+		}
 	})
 	if err != nil {
 		return nil, util.TransformAndRecordError(err, &m.Metrics.projectEndpointMetrics.list)

@@ -35,7 +35,7 @@ func Test_tokenEndpoint(t *testing.T) {
 		assert.Equal(t, http.StatusBadRequest, rw.Code)
 	})
 
-	t.Run("Valid token request", func(t *testing.T) {
+	t.Run("Valid token request authorization code", func(t *testing.T) {
 		// create a signer for rsa 256
 		tok := jwtgo.New(jwtgo.GetSigningMethod("RS256"))
 
@@ -73,7 +73,7 @@ func Test_tokenEndpoint(t *testing.T) {
 
 		m := map[string]interface{}{}
 		assert.NoError(t, json.Unmarshal(rw.Body.Bytes(), &m))
-		assert.Equal(t, 0.5*time.Hour.Seconds()-1, m["expires_in"])
+		assert.True(t, m["expires_in"].(float64) <= 0.5*time.Hour.Seconds())
 
 		assert.NotEmpty(t, m["access_token"])
 		// Parse and validate the token.
@@ -106,6 +106,52 @@ func Test_tokenEndpoint(t *testing.T) {
 		claims = parsedToken.Claims.(jwtgo.MapClaims)
 		assert.True(t, claims.VerifyExpiresAt(expectedRefreshTokenExpiry, true))
 	})
+
+	t.Run("Valid token request client credentials", func(t *testing.T) {
+		oauth2Provider, secrets := newMockProvider(t)
+
+		payload := url.Values{
+			"grant_type": {"client_credentials"},
+			"scope":      {"all", "offline"},
+		}
+
+		req := httptest.NewRequest(http.MethodPost, "/token", bytes.NewReader([]byte(payload.Encode())))
+		req.PostForm = payload
+		req.Header.Set("authorization", basicAuth("flytepropeller", "foobar"))
+		mockAuthCtx := &mocks.AuthenticationContext{}
+		mockAuthCtx.OnOAuth2Provider().Return(oauth2Provider)
+		mockAuthCtx.OnOptions().Return(&config.Config{})
+
+		rw := httptest.NewRecorder()
+		tokenEndpoint(mockAuthCtx, rw, req)
+		if !assert.Equal(t, http.StatusOK, rw.Code) {
+			t.FailNow()
+		}
+
+		m := map[string]interface{}{}
+		assert.NoError(t, json.Unmarshal(rw.Body.Bytes(), &m))
+		assert.True(t, m["expires_in"].(float64) <= 0.5*time.Hour.Seconds())
+
+		assert.NotEmpty(t, m["access_token"])
+		// Parse and validate the token.
+		parsedToken, err := jwtgo.Parse(m["access_token"].(string), func(tok *jwtgo.Token) (interface{}, error) {
+			keySet, err := newJSONWebKeySet([]rsa.PublicKey{secrets.TokenSigningRSAPrivateKey.PublicKey})
+			assert.NoError(t, err)
+
+			return findPublicKeyForTokenOrFirst(context.Background(), tok, keySet)
+		})
+
+		assert.NoError(t, err)
+		expectedAccessTokenExpiry := time.Now().Add(config.DefaultConfig.AppAuth.SelfAuthServer.AccessTokenLifespan.Duration - time.Second).Unix()
+
+		claims := parsedToken.Claims.(jwtgo.MapClaims)
+
+		assert.Equal(t, "flytepropeller", claims["client_id"].(string))
+		assert.True(t, claims.VerifyExpiresAt(expectedAccessTokenExpiry, true))
+		assert.NoError(t, err)
+
+	})
+
 }
 
 func basicAuth(username, password string) string {

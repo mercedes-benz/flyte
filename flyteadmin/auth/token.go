@@ -19,9 +19,10 @@ import (
 )
 
 const (
-	ErrRefreshingToken errors.ErrorCode = "TOKEN_REFRESH_FAILURE"
-	ErrTokenExpired    errors.ErrorCode = "JWT_EXPIRED"
-	ErrJwtValidation   errors.ErrorCode = "JWT_VERIFICATION_FAILED"
+	ErrRefreshingToken  errors.ErrorCode = "TOKEN_REFRESH_FAILURE"
+	ErrTokenExpired     errors.ErrorCode = "JWT_EXPIRED"
+	ErrJwtValidation    errors.ErrorCode = "JWT_VERIFICATION_FAILED"
+	entitlementClaimKey                  = "entitlement_group"
 )
 
 // Refresh a JWT

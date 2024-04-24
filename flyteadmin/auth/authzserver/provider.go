@@ -27,10 +27,11 @@ import (
 )
 
 const (
-	ClientIDClaim = "client_id"
-	UserIDClaim   = "user_info"
-	ScopeClaim    = "scp"
-	KeyIDClaim    = "key_id"
+	ClientIDClaim          = "client_id"
+	UserIDClaim            = "user_info"
+	ScopeClaim             = "scp"
+	KeyIDClaim             = "key_id"
+	UserIDAdditionalClaims = "additional_claims"
 )
 
 // Provider implements OAuth2 Authorization Server.
