@@ -3,6 +3,9 @@ package implementations
 import (
 	"crypto/tls"
 	"fmt"
+	"net/smtp"
+	"strings"
+
 	"github.com/flyteorg/flyte/flyteadmin/pkg/async/notifications/interfaces"
 	"github.com/flyteorg/flyte/flyteadmin/pkg/errors"
 	runtimeInterfaces "github.com/flyteorg/flyte/flyteadmin/pkg/runtime/interfaces"
@@ -12,8 +15,6 @@ import (
 	"github.com/flyteorg/flyte/flytestdlib/promutils"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
-	"net/smtp"
-	"strings"
 )
 
 type SmtpEmailer struct {
@@ -65,11 +66,7 @@ func (s *SmtpEmailer) SendEmail(ctx context.Context, email admin.EmailMessage) e
 		return s.emailError(ctx, fmt.Sprintf("Error adding email recipient: %s", err))
 	}
 
-	mailBody, err := createMailBody(s.config.Sender, email)
-
-	if err != nil {
-		return s.emailError(ctx, fmt.Sprintf("Error creating email body: %s", err))
-	}
+	mailBody := createMailBody(s.config.Sender, email)
 
 	_, err = writer.Write([]byte(mailBody))
 
@@ -99,7 +96,7 @@ func (s *SmtpEmailer) emailError(ctx context.Context, error string) error {
 	return errors.NewFlyteAdminErrorf(codes.Internal, "errors were seen while sending emails")
 }
 
-func createMailBody(emailSender string, email admin.EmailMessage) (string, error) {
+func createMailBody(emailSender string, email admin.EmailMessage) string {
 	headerMap := make(map[string]string)
 	headerMap["From"] = emailSender
 	headerMap["To"] = strings.Join(email.RecipientsEmail, ",")
@@ -114,7 +111,7 @@ func createMailBody(emailSender string, email admin.EmailMessage) (string, error
 
 	mailMessage += "\r\n" + email.Body
 
-	return mailMessage, nil
+	return mailMessage
 }
 
 func NewSmtpEmailer(ctx context.Context, config runtimeInterfaces.NotificationsConfig, scope promutils.Scope, sm core.SecretManager) interfaces.Emailer {
@@ -130,7 +127,7 @@ func NewSmtpEmailer(ctx context.Context, config runtimeInterfaces.NotificationsC
 	auth := smtp.PlainAuth("", emailConf.SmtpUsername, smtpPassword, emailConf.SmtpServer)
 
 	tlsConfiguration = &tls.Config{
-		InsecureSkipVerify: emailConf.SmtpSkipTLSVerify,
+		InsecureSkipVerify: emailConf.SmtpSkipTLSVerify, // #nosec G402
 		ServerName:         emailConf.SmtpServer,
 	}
 

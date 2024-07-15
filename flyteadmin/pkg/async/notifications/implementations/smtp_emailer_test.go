@@ -2,13 +2,14 @@ package implementations
 
 import (
 	"context"
+	"testing"
+
 	"github.com/flyteorg/flyte/flyteadmin/pkg/runtime/interfaces"
 	"github.com/flyteorg/flyte/flyteidl/gen/pb-go/flyteidl/admin"
 	"github.com/flyteorg/flyte/flyteplugins/go/tasks/pluginmachinery/core/mocks"
 	"github.com/flyteorg/flyte/flytestdlib/promutils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"testing"
 )
 
 func getNotificationsEmailerConfig() interfaces.NotificationsConfig {
@@ -42,9 +43,8 @@ func TestEmailCreation(t *testing.T) {
 		SenderEmail:     "sender@sender.com",
 	}
 
-	body, err := createMailBody("sender@sender.com", email)
+	body := createMailBody("sender@sender.com", email)
 
-	assert.NoError(t, err)
 	assert.Equal(t, "From: sender@sender.com\r\nTo: john@doe.com,teresa@tester.com\r\nSubject: subject\r\nContent-Type: text/html; charset=\"UTF-8\"\r\n\r\nEmail Body", body)
 }
 
